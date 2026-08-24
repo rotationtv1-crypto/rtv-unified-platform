@@ -203,3 +203,43 @@ CREATE TABLE IF NOT EXISTS webhook_logs (
 CREATE INDEX IF NOT EXISTS idx_app_versions_bot_id ON app_versions(bot_id);
 CREATE INDEX IF NOT EXISTS idx_feature_flags_bot_id ON feature_flags(bot_id);
 CREATE INDEX IF NOT EXISTS idx_webhook_logs_bot_id ON webhook_logs(bot_id);
+
+-- ===== CLOUDFLARE STREAM TABLES =====
+
+CREATE TABLE IF NOT EXISTS cloudflare_live_inputs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  uid TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  channel_id INTEGER,
+  rtmps_url TEXT,
+  srt_url TEXT,
+  webrtc_url TEXT,
+  status TEXT DEFAULT 'active',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (channel_id) REFERENCES channels(id)
+);
+
+CREATE TABLE IF NOT EXISTS cloudflare_vod (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  uid TEXT NOT NULL UNIQUE,
+  cf_stream_uid TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  channel_id INTEGER,
+  user_id INTEGER,
+  thumbnail_url TEXT,
+  duration_seconds INTEGER DEFAULT 0,
+  view_count INTEGER DEFAULT 0,
+  requires_token INTEGER DEFAULT 0,
+  token_cost_rtv INTEGER DEFAULT 0,
+  is_public INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (channel_id) REFERENCES channels(id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cloudflare_live_inputs_channel ON cloudflare_live_inputs(channel_id);
+CREATE INDEX IF NOT EXISTS idx_cloudflare_vod_channel ON cloudflare_vod(channel_id);
+CREATE INDEX IF NOT EXISTS idx_cloudflare_vod_user ON cloudflare_vod(user_id);
