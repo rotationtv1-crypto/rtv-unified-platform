@@ -14,6 +14,7 @@ import { healthRoute } from './routes/health'
 import { rateLimitMiddleware } from './lib/rateLimit'
 import { errorHandler } from './lib/errorHandler'
 import telegramRoutes from './routes/telegram'
+import streamingRoutes from './routes/streaming'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -36,6 +37,7 @@ app.route('/api/vod', vodRoutes)
 app.route('/api/tips', tipRoutes)
 app.route('/api/payouts', payoutRoutes)
 app.route('/api/admin', adminRoutes)
+app.route('/api/streaming', streamingRoutes)
 app.route('/telegram', telegramRoutes)
 
 app.onError(errorHandler)
