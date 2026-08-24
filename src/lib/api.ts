@@ -1,94 +1,133 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.21.0'
+// RotationTV Unified Platform — API Client
+// Connects frontend to Supabase Edge Functions backend
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+const API_BASE = import.meta.env.VITE_API_URL || '/api'
+
+class APIError extends Error {
+  status: number
+  constructor(status: number, message: string) {
+    super(message)
+    this.name = 'APIError'
+    this.status = status
+  }
 }
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+async function fetchAPI(endpoint: string, options: RequestInit = {}) {
+  const token = localStorage.getItem('rtv_token')
+
+  const res = await fetch(`${API_BASE}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
+  })
+
+  const data = await res.json().catch(() => ({}))
+
+  if (!res.ok) {
+    throw new APIError(res.status, data.error || `HTTP ${res.status}`)
   }
 
-  try {
-    const { email, password, display_name } = await req.json()
+  return data
+}
 
-    if (!email || !password) {
-      return new Response(
-        JSON.stringify({ error: 'Email and password are required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
+// ================================================================
+// AUTH API
+// ================================================================
 
-    if (password.length < 8) {
-      return new Response(
-        JSON.stringify({ error: 'Password must be at least 8 characters' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { display_name: display_name || email.split('@')[0] }
+export const authAPI = {
+  async register(email: string, password: string, displayName?: string) {
+    const data = await fetchAPI('/auth/web-register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, display_name: displayName }),
     })
-
-    if (authError) {
-      return new Response(
-        JSON.stringify({ error: authError.message }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    if (data.token) {
+      localStorage.setItem('rtv_token', data.token)
+      localStorage.setItem('rtv_refresh', data.refreshToken)
     }
+    return data
+  },
 
-    // Sign in to get tokens
-    const { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
-      email,
-      password,
+  async login(email: string, password: string) {
+    const data = await fetchAPI('/auth/web-login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
     })
-
-    if (signInError) {
-      return new Response(
-        JSON.stringify({ error: signInError.message }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    if (data.token) {
+      localStorage.setItem('rtv_token', data.token)
+      localStorage.setItem('rtv_refresh', data.refreshToken)
     }
+    return data
+  },
 
-    const user = signInData.user
-    const session = signInData.session
+  async me() {
+    return fetchAPI('/auth/me')
+  },
 
-    // Store session in database
-    await supabaseAdmin.from('auth_sessions').insert({
-      user_id: user.id,
-      token_hash: session.access_token.slice(-32),
-      refresh_token_hash: session.refresh_token?.slice(-32),
-      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+  async logout() {
+    await fetchAPI('/auth/logout', { method: 'POST' })
+    localStorage.removeItem('rtv_token')
+    localStorage.removeItem('rtv_refresh')
+  },
+
+  async verifyTelegram(initData: string, initDataUnsafe: Record<string, unknown>) {
+    return fetchAPI('/telegram/verify', {
+      method: 'POST',
+      body: JSON.stringify({ initData, initDataUnsafe }),
     })
+  },
+}
 
-    return new Response(
-      JSON.stringify({
-        token: session.access_token,
-        refreshToken: session.refresh_token,
-        user: {
-          id: user.id,
-          email: user.email,
-          displayName: display_name || email.split('@')[0],
-        }
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+// ================================================================
+// CHANNELS API
+// ================================================================
 
-  } catch (err) {
-    return new Response(
-      JSON.stringify({ error: err.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
-  }
-})
+export const channelsAPI = {
+  async list(params?: { type?: string; category?: string; search?: string }) {
+    const qs = new URLSearchParams(params as Record<string, string>).toString()
+    return fetchAPI(`/channels${qs ? '?' + qs : ''}`)
+  },
+
+  async get(slug: string) {
+    return fetchAPI(`/channels?slug=${encodeURIComponent(slug)}`)
+  },
+}
+
+// ================================================================
+// VOD API
+// ================================================================
+
+export const vodAPI = {
+  async list(params?: {
+    genre?: string
+    category?: string
+    search?: string
+    is_original?: string
+    limit?: string
+    offset?: string
+  }) {
+    const qs = new URLSearchParams(params as Record<string, string>).toString()
+    return fetchAPI(`/vod${qs ? '?' + qs : ''}`)
+  },
+
+  async get(slug: string) {
+    return fetchAPI(`/vod?slug=${encodeURIComponent(slug)}`)
+  },
+}
+
+// ================================================================
+// WEBHOOK API
+// ================================================================
+
+export const webhookAPI = {
+  async sendTribute(payload: Record<string, unknown>) {
+    return fetchAPI('/webhooks/tribute?source=tribute', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  },
+}
+
+export { APIError }
