@@ -1,0 +1,162 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 10% 4%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 6%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 6%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 6% 12%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 6% 12%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 240 6% 12%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 6% 12%;
+    --input: 240 6% 12%;
+    --ring: 217 91% 60%;
+    --radius: 0.75rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-[#0a0a0f] text-foreground antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* ========== RTV RESPONSIVE SYSTEM ========== */
+
+  /* Fluid Typography Scale */
+  .rtv-text-xs { font-size: clamp(0.65rem, 0.7vw + 0.5rem, 0.75rem); }
+  .rtv-text-sm { font-size: clamp(0.75rem, 0.8vw + 0.55rem, 0.875rem); }
+  .rtv-text-base { font-size: clamp(0.875rem, 1vw + 0.6rem, 1rem); }
+  .rtv-text-lg { font-size: clamp(1rem, 1.2vw + 0.65rem, 1.25rem); }
+  .rtv-text-xl { font-size: clamp(1.25rem, 1.8vw + 0.7rem, 1.75rem); }
+  .rtv-text-2xl { font-size: clamp(1.5rem, 2.5vw + 0.75rem, 2.25rem); }
+  .rtv-text-hero { font-size: clamp(2rem, 5vw + 1rem, 4rem); }
+
+  /* Responsive Container */
+  .rtv-container {
+    width: 100%;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: clamp(0.75rem, 2vw, 1.5rem);
+    padding-right: clamp(0.75rem, 2vw, 1.5rem);
+  }
+  @media (min-width: 480px) { .rtv-container { max-width: 100%; } }
+  @media (min-width: 768px) { .rtv-container { max-width: 768px; } }
+  @media (min-width: 1024px) { .rtv-container { max-width: 1024px; } }
+  @media (min-width: 1440px) { .rtv-container { max-width: 1440px; } }
+  @media (min-width: 1920px) { .rtv-container { max-width: 1600px; } }
+
+  /* Responsive Grid */
+  .rtv-grid {
+    display: grid;
+    gap: clamp(0.5rem, 1vw, 1rem);
+    grid-template-columns: repeat(1, 1fr);
+  }
+  @media (min-width: 480px) { .rtv-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 768px) { .rtv-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 1024px) { .rtv-grid { grid-template-columns: repeat(4, 1fr); } }
+  @media (min-width: 1440px) { .rtv-grid { grid-template-columns: repeat(5, 1fr); } }
+
+  /* Channel Grid - cable-grade density */
+  .rtv-channel-grid {
+    display: grid;
+    gap: clamp(0.5rem, 1vw, 1rem);
+    grid-template-columns: repeat(1, 1fr);
+  }
+  @media (min-width: 480px) { .rtv-channel-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 640px) { .rtv-channel-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 1024px) { .rtv-channel-grid { grid-template-columns: repeat(4, 1fr); } }
+  @media (min-width: 1440px) { .rtv-channel-grid { grid-template-columns: repeat(5, 1fr); } }
+  @media (min-width: 1920px) { .rtv-channel-grid { grid-template-columns: repeat(6, 1fr); } }
+
+  /* Responsive Spacing Scale */
+  .rtv-gap-xs { gap: clamp(0.25rem, 0.5vw, 0.5rem); }
+  .rtv-gap-sm { gap: clamp(0.5rem, 0.8vw, 0.75rem); }
+  .rtv-gap-md { gap: clamp(0.75rem, 1.2vw, 1.25rem); }
+  .rtv-gap-lg { gap: clamp(1rem, 2vw, 2rem); }
+  .rtv-gap-xl { gap: clamp(1.5rem, 3vw, 3rem); }
+
+  .rtv-p-xs { padding: clamp(0.25rem, 0.5vw, 0.5rem); }
+  .rtv-p-sm { padding: clamp(0.5rem, 0.8vw, 0.75rem); }
+  .rtv-p-md { padding: clamp(0.75rem, 1.2vw, 1.25rem); }
+  .rtv-p-lg { padding: clamp(1rem, 2vw, 2rem); }
+  .rtv-p-xl { padding: clamp(1.5rem, 3vw, 3rem); }
+
+  /* Navigation Breakpoints */
+  .rtv-nav-desktop { display: none; }
+  .rtv-nav-mobile { display: flex; }
+  @media (min-width: 768px) {
+    .rtv-nav-desktop { display: flex; }
+    .rtv-nav-mobile { display: none; }
+  }
+
+  /* Aspect Ratios for Cards */
+  .rtv-aspect-channel { aspect-ratio: 16 / 9; }
+  .rtv-aspect-poster { aspect-ratio: 2 / 3; }
+  .rtv-aspect-square { aspect-ratio: 1 / 1; }
+  .rtv-aspect-hero { aspect-ratio: 21 / 9; }
+
+  /* Touch-friendly buttons */
+  .rtv-btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: clamp(0.5rem, 1vw, 0.75rem) clamp(0.75rem, 1.5vw, 1.25rem);
+    border-radius: clamp(0.5rem, 0.8vw, 0.75rem);
+    font-size: clamp(0.75rem, 0.9vw, 0.875rem);
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+  .rtv-btn:active { transform: scale(0.97); }
+
+  /* Scroll-driven animations (progressive enhancement) */
+  @media (prefers-reduced-motion: no-preference) {
+    .rtv-fade-in {
+      animation: rtvFadeIn 0.4s ease-out;
+    }
+    .rtv-slide-up {
+      animation: rtvSlideUp 0.4s ease-out;
+    }
+  }
+
+  @keyframes rtvFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes rtvSlideUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
