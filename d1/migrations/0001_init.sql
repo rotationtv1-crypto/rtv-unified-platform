@@ -155,3 +155,51 @@ INSERT INTO vod (user_id, title, description, video_url, duration_seconds, categ
 (1, 'Tears of Steel', 'A sci-fi short film about robots and memories', 'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8', 734, 'movies', 'sci-fi,short', 15400),
 (1, 'Big Buck Bunny', 'Open movie project by Blender Foundation', 'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8', 596, 'animation', 'animation,comedy', 89300),
 (1, 'Sintel', 'Fantasy animated short film', 'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8', 888, 'animation', 'fantasy,drama', 42100);
+
+-- ===== TELEGRAM APP ORCHESTRATOR TABLES =====
+
+CREATE TABLE IF NOT EXISTS bot_registry (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  bot_id TEXT NOT NULL UNIQUE,
+  bot_token_hash TEXT NOT NULL,
+  bot_name TEXT NOT NULL,
+  bot_username TEXT NOT NULL,
+  web_app_url TEXT NOT NULL,
+  allowed_origins TEXT DEFAULT '["*"]',
+  is_active INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS app_versions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  version_id TEXT NOT NULL UNIQUE,
+  bot_id TEXT NOT NULL,
+  version_tag TEXT NOT NULL,
+  asset_cdn_url TEXT NOT NULL,
+  feature_flags TEXT DEFAULT '{}',
+  is_active INTEGER DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS feature_flags (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  bot_id TEXT NOT NULL,
+  flag_key TEXT NOT NULL,
+  flag_value TEXT NOT NULL,
+  flag_type TEXT DEFAULT 'boolean',
+  rollout_percent INTEGER DEFAULT 100,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS webhook_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  bot_id TEXT NOT NULL,
+  update_type TEXT,
+  payload TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_app_versions_bot_id ON app_versions(bot_id);
+CREATE INDEX IF NOT EXISTS idx_feature_flags_bot_id ON feature_flags(bot_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_bot_id ON webhook_logs(bot_id);

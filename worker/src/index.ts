@@ -13,12 +13,13 @@ import { adminRoutes } from './routes/admin'
 import { healthRoute } from './routes/health'
 import { rateLimitMiddleware } from './lib/rateLimit'
 import { errorHandler } from './lib/errorHandler'
+import telegramRoutes from './routes/telegram'
 
 const app = new Hono<{ Bindings: Env }>()
 
 app.use('*', cors({
-  origin: ['https://rotationtv.network', 'https://*.pages.dev', 'https://*.workers.dev', 'https://t.me'],
-  allowHeaders: ['Content-Type', 'Authorization', 'X-Telegram-Init-Data'],
+  origin: ['https://rotationtv.network', 'https://*.pages.dev', 'https://*.workers.dev', 'https://t.me', 'https://*.kimi.page'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-Telegram-Init-Data', 'X-Bot-Id'],
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   maxAge: 86400,
 }))
@@ -35,6 +36,7 @@ app.route('/api/vod', vodRoutes)
 app.route('/api/tips', tipRoutes)
 app.route('/api/payouts', payoutRoutes)
 app.route('/api/admin', adminRoutes)
+app.route('/telegram', telegramRoutes)
 
 app.onError(errorHandler)
 app.notFound((c) => c.json({ error: 'Not Found', path: c.req.path }, 404))
