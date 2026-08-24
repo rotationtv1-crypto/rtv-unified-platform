@@ -1,7 +1,9 @@
 export interface Env {
+  DB: D1Database
   D1: D1Database
   KV_RATE_LIMIT: KVNamespace
   KV_CACHE: KVNamespace
+  KV_TOKENS: KVNamespace
   TELEGRAM_BOT_TOKEN: string
   ADMIN_SECRET: string
   CF_STREAM_API_TOKEN?: string
@@ -104,18 +106,48 @@ export interface Payout {
   processed_at?: string
 }
 
+export interface CloudflareLiveInput {
+  uid: string
+  name: string
+  channel_id?: string
+  rtmps_url: string
+  srt_url: string
+  webrtc_url: string
+  status: string
+  created_at: string
+}
+
+export interface CloudflareVOD {
+  uid: string
+  cf_stream_uid: string
+  title: string
+  description?: string
+  channel_id?: string
+  user_id: string
+  thumbnail_url?: string
+  duration_seconds: number
+  view_count: number
+  requires_token: boolean
+  token_cost_rtv: number
+  is_public: boolean
+  created_at: string
+}
+
 // Hono context variables for Telegram auth
-declare module 'hono' {
-  interface ContextVariableMap {
-    telegramUser: {
-      id: number
-      first_name: string
-      last_name?: string
-      username?: string
-      photo_url?: string
-      language_code?: string
-    }
-    botId: string
-    botToken: string
+export interface HonoVariables {
+  telegramUser: {
+    id: number
+    first_name: string
+    last_name?: string
+    username?: string
+    photo_url?: string
+    language_code?: string
   }
+  botId: string
+  botToken: string
+  userId: string
+}
+
+declare module 'hono' {
+  interface ContextVariableMap extends HonoVariables {}
 }
