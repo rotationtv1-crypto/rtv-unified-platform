@@ -1,182 +1,136 @@
-# RotationTV Network — Unified Platform v2
+# RotationTV Unified Platform
 
-Sovereign streaming television network with token-native monetization, built on Cloudflare edge infrastructure. Supports both Telegram Mini App and standalone web modes from a single React codebase.
+Cable-grade streaming television network. Hybrid FAST + Live + VOD platform with broadcast-level reliability.
 
-## What's New in v2
+## Live Deployment
 
-- **Unified Frontend**: Single React app auto-detects Telegram vs standalone web
-- **Cloudflare Stream Integration**: Live inputs (RTMP/SRT/WebRTC) + VOD with token-gated playback
-- **Multi-Bot Gateway**: Support for multiple Telegram bots via bot registry
-- **Cloud SDK Proxy**: Secure Bot API proxy with per-bot token routing
-- **Sync Engine**: Version publishing and feature flags for Mini App updates
-- **Web Auth**: Email/password authentication for standalone web users
-- **Landing Page**: Marketing site with feature showcase, stats, and CTAs
+- **Web App:** https://mcky5iohe4d4u.kimi.page
+- **Repo:** https://github.com/rotationtv1-crypto/rtv-unified-platform
 
 ## Architecture
 
+```
+[Content Sources]
+ ├── VOD Catalog (S3 Storage) ──────► Unified Origin ──┐
+ ├── Live Feeds (SRT / RTMP Ingest) ─► MediaLive ──────┼─► Multi-CDN ─► Unified Apps
+ └── Cloud Playout (FAST Schedule) ──► SSAI Engine ────┘   (Akamai/     (Roku/iOS/
+                                                            Cloudflare)   Smart TVs)
+```
+
+## Tech Stack
+
 | Layer | Technology |
-|-------|-----------|
-| Frontend | React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui |
-| Routing | React Router DOM (web) / Tab-based (Mini App) |
-| State | Zustand |
-| Player | HLS.js (live + VOD) |
-| Backend | Hono framework on Cloudflare Workers |
-| Database | Cloudflare D1 (SQLite edge database) |
-| Cache/Rate Limit | Cloudflare KV |
-| Streaming | Cloudflare Stream API + AWS MediaLive (dual-region) |
-| Auth | Telegram initData HMAC-SHA256 + Web JWT |
-
-## Project Structure
-
-```
-rtv-unified-platform/
-├── frontend/                 # Unified React app (Mini App + Web)
-│   ├── src/
-│   │   ├── App.tsx           # Mode detection & routing
-│   │   ├── main.tsx          # Entry point with Telegram init
-│   │   ├── store/rtvStore.ts # Zustand state management
-│   │   ├── hooks/
-│   │   │   ├── useTelegramAuth.ts   # initData validation
-│   │   │   └── useCloudflareStream.ts # Stream API client
-│   │   ├── sections/
-│   │   │   ├── MiniAppLayout.tsx    # Telegram bottom-nav UI
-│   │   │   ├── WebLayout.tsx        # Top-nav web UI
-│   │   │   ├── LandingPage.tsx      # Marketing homepage
-│   │   │   ├── WebAuth.tsx          # Email/password auth
-│   │   │   ├── WebChannelBrowser.tsx # Channel grid (web)
-│   │   │   ├── WebLiveStreams.tsx   # Live broadcasts (web)
-│   │   │   ├── WebVOD.tsx           # On-demand library (web)
-│   │   │   ├── WebWatch.tsx         # Player page (web)
-│   │   │   ├── ChannelGrid.tsx      # Mini App channels
-│   │   │   ├── LiveStreams.tsx      # Mini App live
-│   │   │   ├── VODLibrary.tsx       # Mini App VOD
-│   │   │   ├── LivePlayer.tsx       # HLS player overlay
-│   │   │   ├── CreatorDashboard.tsx # Studio dashboard
-│   │   │   ├── AdminPanel.tsx       # Admin controls
-│   │   │   └── BottomNav.tsx        # Mini App navigation
-│   ├── index.html
-│   ├── package.json
-│   ├── vite.config.ts
-│   └── tsconfig.json
-├── worker/                   # Cloudflare Worker API (Hono)
-│   ├── src/
-│   │   ├── index.ts          # App entry + CORS + routing
-│   │   ├── types.ts          # Env bindings + TypeScript types
-│   │   ├── telegram/         # Telegram subsystem
-│   │   │   ├── botRegistry.ts    # Multi-bot registration
-│   │   │   ├── cloudSdk.ts       # Bot API proxy
-│   │   │   ├── syncEngine.ts     # Version + feature flags
-│   │   │   └── initData.ts       # HMAC-SHA256 validation
-│   │   ├── streaming/        # Cloudflare Stream
-│   │   │   └── cloudflareStream.ts # Stream API client
-│   │   ├── routes/
-│   │   │   ├── telegram.ts       # Multi-bot gateway routes
-│   │   │   ├── streaming.ts      # Live inputs + VOD routes
-│   │   │   ├── channels.ts       # Channel CRUD
-│   │   │   ├── streams.ts        # Stream management
-│   │   │   ├── vod.ts            # VOD library
-│   │   │   ├── auth.ts           # Telegram + Web auth
-│   │   │   ├── tips.ts           # Tipping/gifts
-│   │   │   ├── payouts.ts        # Creator payouts
-│   │   │   ├── admin.ts          # Admin panel API
-│   │   │   └── health.ts         # Health check
-│   │   └── lib/
-│   │       ├── db.ts
-│   │       ├── rateLimit.ts
-│   │       ├── errorHandler.ts
-│   │       └── telegramAuth.ts
-│   ├── wrangler.toml
-│   └── package.json
-├── d1/
-│   └── migrations/
-│       └── 0001_init.sql     # Full schema with Stream tables
-└── .github/
-    └── workflows/
-        └── deploy.yml          # CI/CD pipeline
-```
-
-## Features
-
-### Streaming
-- **FAST Channels**: 24/7 scheduled programming with demo HLS streams
-- **Live Streaming**: RTMP/SRT/WebRTC ingest via Cloudflare Stream live inputs
-- **VOD Library**: On-demand content with token-gated premium access
-- **CMAF Packaging**: Single segment set serves both HLS and DASH
-- **Dual-Origin**: Cloudflare Stream + AWS MediaLive failover
-
-### Monetization
-- **Tipping/Gifts**: 6-tier gift system (🌹⭐🚀👑💎📡) using Telegram Stars
-- **Token-Gated Content**: RTV token economy for premium access
-- **Payouts**: USDT, EUR, RUB with minimum thresholds
-- **Creator Studio**: Dashboard with earnings, analytics, payout requests
-
-### Telegram Integration
-- **Multi-Bot Gateway**: Register and manage multiple bot tokens
-- **Cloud SDK Proxy**: Secure Bot API proxy (`/telegram/:botId/:method`)
-- **Sync Engine**: Version publishing and feature flags
-- **Webhook Handler**: Per-bot webhook routing
-- **Broadcast**: Admin broadcast to all bot users
-
-### Platform
-- **Admin Panel**: User management, payout approval, platform analytics
-- **Rate Limiting**: KV-based with graceful degradation
-- **Web Auth**: JWT-based email/password for standalone users
-- **Responsive**: Mobile-first design for both Mini App and web
-
-## Environment Variables
-
-### Worker Secrets (Cloudflare)
-```bash
-# Required
-TELEGRAM_BOT_TOKEN      # Primary bot token
-JWT_SECRET              # Signing secret for web auth
-ENCRYPTION_KEY          # KV token encryption
-
-# Cloudflare Stream (optional but recommended)
-CF_STREAM_API_TOKEN     # Stream API token
-CF_ACCOUNT_ID           # Cloudflare account ID
-
-# Admin
-ADMIN_SECRET            # Admin panel access key
-RTV_API_SECRET          # API signing secret
-```
-
-### Frontend
-```bash
-VITE_API_BASE=https://rtv-api.rotationtimmy.workers.dev
-```
+|-------|------------|
+| Frontend | React 19 + TypeScript + Vite + Tailwind CSS |
+| State | Zustand (with localStorage persistence) |
+| Routing | React Router v7 |
+| Player | HLS.js |
+| Backend | Supabase Edge Functions (Deno) |
+| Database | PostgreSQL 15 + Row Level Security |
+| Auth | Supabase Auth + Telegram initData HMAC |
+| Payments | Telegram Stars + TON + Tribute |
+| CDN | Cloudflare + Akamai + Fastly |
 
 ## Quick Start
 
 ```bash
-# Clone
-git clone https://github.com/rotationtv1-crypto/rtv-unified-platform.git
-cd rtv-unified-platform
-
-# Frontend
-cd frontend
+# Install dependencies
 npm install
+
+# Start dev server
 npm run dev
 
-# Worker (separate terminal)
-cd ../worker
-npm install
-npx wrangler dev
+# Build for production
+npm run build
 ```
 
-## Deployment
+## Environment Setup
 
-See [DEPLOY.md](DEPLOY.md) for detailed deployment instructions.  
-See [SETUP.md](SETUP.md) for local development setup.
+Copy `.env.example` to `.env.local` and fill in your Supabase credentials:
 
-## Live Deployments
+```bash
+cp .env.example .env.local
+```
 
-| Component | URL |
-|-----------|-----|
-| Frontend (Web) | https://mcky5iohe4d4u.kimi.page |
-| API Worker | `https://rtv-api.rotationtimmy.workers.dev` |
-| Telegram Bot | @RotationTimmy |
+## Supabase Edge Functions
+
+### Deploy
+
+```bash
+# Login to Supabase
+supabase login
+
+# Link project
+supabase link --project-ref xynkgaxfwvpcixissxdz
+
+# Deploy all functions
+supabase functions deploy
+
+# Apply database migrations
+supabase db push
+```
+
+### Functions
+
+| Function | Path | Auth | Description |
+|----------|------|------|-------------|
+| auth-web-register | `/auth/web-register` | Public | User registration |
+| auth-web-login | `/auth/web-login` | Public | User login |
+| auth-me | `/auth/me` | Required | Get current user |
+| auth-logout | `/auth/logout` | Required | Sign out |
+| channels | `/channels` | Public | List/get channels |
+| vod | `/vod` | Public | List/get VOD content |
+| telegram-verify | `/telegram/verify` | Public | Validate Telegram initData |
+| webhook-tribute | `/webhooks/tribute` | Public | Payment webhooks |
+
+## Database Schema
+
+### Tables
+
+- `profiles` — User profiles (extends auth.users)
+- `user_preferences` — Content & accessibility preferences
+- `auth_sessions` — Custom session management
+- `categories` — Content categories (14 seeded)
+- `genres` — Content genres (50+ seeded)
+- `shows` — TV shows and movies
+- `show_genres` — Many-to-many show-genre junction
+- `channels` — Live/FAST channels
+- `programs` — EPG program schedule
+- `vod_items` — VOD episodes
+- `watch_history` — User viewing history
+- `bookmarks` — Saved content
+- `telegram_users` — Telegram Mini App users
+- `transactions` — Payment transactions
+- `creators` — Creator profiles
+- `tributes` — Creator tips/donations
+- `webhook_events` — Incoming webhook audit log
+
+### Row Level Security
+
+All user-data tables have RLS enabled with policies restricting access to the authenticated owner.
+
+## Responsive Breakpoints
+
+| Name | Width | Columns |
+|------|-------|---------|
+| Mobile | ≤480px | 1 |
+| Tablet | 481-768px | 2 |
+| Laptop | 769-1024px | 3 |
+| Desktop | 1025-1440px | 4-5 |
+| Large | ≥1441px | 5-6 |
+
+## Feature Flags
+
+| Flag | Description |
+|------|-------------|
+| `VITE_ENABLE_TELEGRAM_PAYMENTS` | Telegram Stars checkout |
+| `VITE_ENABLE_TON_PAYMENTS` | TON blockchain payments |
+| `VITE_ENABLE_SUBSCRIPTIONS` | Premium tier subscriptions |
+
+## Verification
+
+See `verifier/` directory for acceptance criteria and run logs.
 
 ## License
 
-MIT — RotationTV Network LLC
+Proprietary — RotationTV Network LLC
