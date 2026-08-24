@@ -1,0 +1,19 @@
+name = "rtv-api"
+main = "src/index.ts"
+compatibility_date = "2025-03-20"
+
+[env.production]
+name = "rtv-api"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "rtv-prod-db"
+database_id = "4c51f100-3de8-4fc2-a355-08ae412077e9"
+
+[[env.production.kv_namespaces]]
+binding = "KV_RATE_LIMIT"
+id = "96e51e2e7a1040e58d794c5f70d74d9d"
+
+[[env.production.kv_namespaces]]
+binding = "KV_CACHE"
+id = "5bcff7ee359a4422b35d800e4ebae80e"
