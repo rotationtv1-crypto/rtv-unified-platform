@@ -3,13 +3,15 @@ name: Deploy
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: production-deploy
+  group: production-deploy-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -59,6 +61,7 @@ jobs:
 
   deploy-worker:
     name: Deploy API Worker
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     needs: [verify, tribute-tests]
     runs-on: ubuntu-latest
     environment: production
@@ -84,6 +87,7 @@ jobs:
 
   deploy-frontend:
     name: Deploy WebApp to Cloudflare Pages
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     needs: [verify, tribute-tests]
     runs-on: ubuntu-latest
     environment: production
@@ -113,7 +117,7 @@ jobs:
 
   deploy-tribute-function:
     name: Deploy Tribute Supabase Function
-    if: ${{ vars.DEPLOY_SUPABASE_FUNCTIONS == 'true' }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_SUPABASE_FUNCTIONS == 'true' }}
     needs: [verify, tribute-tests]
     runs-on: ubuntu-latest
     environment: production
