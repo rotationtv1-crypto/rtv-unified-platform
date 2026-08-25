@@ -3,9 +3,11 @@ export interface Env {
   D1: D1Database
   KV_RATE_LIMIT: KVNamespace
   KV_CACHE: KVNamespace
-  KV_TOKENS: KVNamespace
+  KV_TOKENS?: KVNamespace
   TELEGRAM_BOT_TOKEN: string
   ADMIN_SECRET: string
+  JWT_SECRET: string
+  TELEGRAM_INITDATA_MAX_AGE?: string
   CF_STREAM_API_TOKEN?: string
   CF_ACCOUNT_ID?: string
   ENVIRONMENT: string
@@ -29,7 +31,7 @@ export interface Channel {
   id: string
   slug: string
   name: string
-  description: string
+  description?: string
   logo_url?: string
   category: string
   is_live: boolean
