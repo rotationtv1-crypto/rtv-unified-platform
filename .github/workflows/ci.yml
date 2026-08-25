@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend build + lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package.json
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - run: npm run lint
+
+  worker:
+    name: Worker typecheck + dry-run deploy
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: worker/package.json
+      - run: npm install --no-audit --no-fund
+      - run: npx tsc --noEmit
+      - run: npx wrangler deploy --env production --dry-run

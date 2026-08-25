@@ -18,8 +18,29 @@ import streamingRoutes from './routes/streaming'
 
 const app = new Hono<{ Bindings: Env }>()
 
+const allowedOrigins = new Set([
+  'https://rotationtv.network',
+  'https://app.rotationtv.network',
+  'https://t.me',
+])
+
+function isAllowedOrigin(origin: string): boolean {
+  if (allowedOrigins.has(origin)) return true
+  try {
+    const url = new URL(origin)
+    return (
+      url.protocol === 'https:' &&
+      (url.hostname.endsWith('.pages.dev') ||
+        url.hostname.endsWith('.workers.dev') ||
+        url.hostname.endsWith('.kimi.page'))
+    )
+  } catch {
+    return false
+  }
+}
+
 app.use('*', cors({
-  origin: ['https://rotationtv.network', 'https://*.pages.dev', 'https://*.workers.dev', 'https://t.me', 'https://*.kimi.page'],
+  origin: (origin) => (origin && isAllowedOrigin(origin) ? origin : ''),
   allowHeaders: ['Content-Type', 'Authorization', 'X-Telegram-Init-Data', 'X-Bot-Id'],
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   maxAge: 86400,

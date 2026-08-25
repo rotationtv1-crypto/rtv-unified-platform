@@ -1,0 +1,109 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: 24
+
+jobs:
+  validate:
+    name: Validate production artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            frontend/package.json
+            worker/package.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install --no-audit --no-fund
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          VITE_API_BASE: ${{ vars.VITE_API_BASE }}
+        run: npm run build
+      - name: Install worker dependencies
+        working-directory: worker
+        run: npm install --no-audit --no-fund
+      - name: Typecheck worker
+        working-directory: worker
+        run: npx tsc --noEmit
+      - name: Dry-run worker deployment
+        working-directory: worker
+        run: npx wrangler deploy --env production --dry-run
+
+  deploy-worker:
+    name: Deploy Cloudflare Worker
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install worker dependencies
+        working-directory: worker
+        run: npm install --no-audit --no-fund
+      - name: Deploy worker
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --env production
+
+  deploy-frontend:
+    name: Deploy Cloudflare Pages WebApp
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install --no-audit --no-fund
+      - name: Build WebApp
+        working-directory: frontend
+        env:
+          VITE_API_BASE: ${{ vars.VITE_API_BASE }}
+        run: npm run build
+      - name: Deploy WebApp to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler pages deploy frontend/dist --project-name=rotationtv-web-app
+
+  smoke:
+    name: Production smoke test
+    needs: [deploy-worker, deploy-frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check API health
+        env:
+          API_BASE: ${{ vars.PRODUCTION_API_BASE }}
+        run: |
+          test -n "$API_BASE"
+          curl --fail --silent --show-error --retry 5 --retry-delay 3 "$API_BASE/health"
+      - name: Check WebApp
+        env:
+          WEBAPP_URL: ${{ vars.PRODUCTION_WEBAPP_URL }}
+        run: |
+          test -n "$WEBAPP_URL"
+          curl --fail --silent --show-error --retry 5 --retry-delay 3 -I "$WEBAPP_URL"
