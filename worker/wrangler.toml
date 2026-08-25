@@ -1,9 +1,13 @@
 name = "rtv-api"
 main = "src/index.ts"
-compatibility_date = "2025-03-20"
+compatibility_date = "2026-08-25"
 
 [env.production]
 name = "rtv-api"
+routes = [{ pattern = "api.rotationtv.network", custom_domain = true }]
+
+[env.production.vars]
+ENVIRONMENT = "production"
 
 [[env.production.d1_databases]]
 binding = "DB"
@@ -18,22 +22,14 @@ id = "96e51e2e7a1040e58d794c5f70d74d9d"
 binding = "KV_CACHE"
 id = "5bcff7ee359a4422b35d800e4ebae80e"
 
-# --- Secrets (do NOT put values in this file) --------------------------------
-# Required runtime secrets, set them once with:
-#   npx wrangler secret put TELEGRAM_BOT_TOKEN --env production
-#   npx wrangler secret put JWT_SECRET --env production
-#   npx wrangler secret put ADMIN_SECRET --env production
-# Optional: override the initData freshness window (seconds, default 86400):
-#   npx wrangler secret put TELEGRAM_INITDATA_MAX_AGE --env production
+# Required runtime secrets are configured in Cloudflare, never committed:
+# TELEGRAM_BOT_TOKEN
+# JWT_SECRET
+# ADMIN_SECRET
+# Optional: TELEGRAM_INITDATA_MAX_AGE
+# Optional Stream secrets: CF_STREAM_API_TOKEN, CF_ACCOUNT_ID
 
-# --- Optional: KV namespace for token/session storage ------------------------
-# The app works without it (session tokens are stateless HMAC tokens), but if
-# you want server-side token storage/revocation via the KV_TOKENS binding:
-#   1. Create the namespace:
-#        npx wrangler kv namespace create KV_TOKENS --env production
-#   2. Copy the printed id, then UNCOMMENT the block below and paste the id.
-#      (Left commented on purpose: a placeholder id would break deploys.)
-#
+# Optional server-side token revocation storage:
 # [[env.production.kv_namespaces]]
 # binding = "KV_TOKENS"
-# id = "<paste-real-kv-tokens-namespace-id-here>"
+# id = "<real-kv-tokens-namespace-id>"
