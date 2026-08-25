@@ -1,5 +1,5 @@
 // RotationTV Unified Platform — API Client
-// Connects frontend to Supabase Edge Functions backend
+// Connects frontend to the backend API
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
@@ -32,10 +32,6 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
 
   return data
 }
-
-// ================================================================
-// AUTH API
-// ================================================================
 
 export const authAPI = {
   async register(email: string, password: string, displayName?: string) {
@@ -80,10 +76,6 @@ export const authAPI = {
   },
 }
 
-// ================================================================
-// CHANNELS API
-// ================================================================
-
 export const channelsAPI = {
   async list(params?: { type?: string; category?: string; search?: string }) {
     const qs = new URLSearchParams(params as Record<string, string>).toString()
@@ -94,10 +86,6 @@ export const channelsAPI = {
     return fetchAPI(`/channels?slug=${encodeURIComponent(slug)}`)
   },
 }
-
-// ================================================================
-// VOD API
-// ================================================================
 
 export const vodAPI = {
   async list(params?: {
@@ -114,19 +102,6 @@ export const vodAPI = {
 
   async get(slug: string) {
     return fetchAPI(`/vod?slug=${encodeURIComponent(slug)}`)
-  },
-}
-
-// ================================================================
-// WEBHOOK API
-// ================================================================
-
-export const webhookAPI = {
-  async sendTribute(payload: Record<string, unknown>) {
-    return fetchAPI('/webhooks/tribute?source=tribute', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
   },
 }
 
