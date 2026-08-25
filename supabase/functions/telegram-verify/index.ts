@@ -1,10 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.21.0'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { corsHeadersFor, internalError } from '../_shared/cors.ts'
 
 // ---------------------------------------------------------------------------
 // Telegram Mini App initData validation (canonical algorithm):
@@ -45,7 +41,7 @@ function toHex(buffer: ArrayBuffer): string {
 }
 
 /** Constant-time string comparison (lengths mixed into the accumulator). */
-function timingSafeEqual(a: string, b: string): boolean {
+function timingSafeEqualStr(a: string, b: string): boolean {
   const ba = encoder.encode(a)
   const bb = encoder.encode(b)
   const maxLen = Math.max(ba.length, bb.length, 1)
@@ -85,8 +81,7 @@ async function validateTelegramInitData(
     'raw',
     encoder.encode('WebAppData'),
     { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
+    false, ['sign'],
   )
   const secretKey = await crypto.subtle.sign('HMAC', webAppDataKey, encoder.encode(botToken))
 
@@ -95,12 +90,11 @@ async function validateTelegramInitData(
     'raw',
     secretKey,
     { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
+    false, ['sign'],
   )
   const checkHash = toHex(await crypto.subtle.sign('HMAC', checkKey, encoder.encode(dataCheckString)))
 
-  if (!timingSafeEqual(checkHash, hash.toLowerCase())) {
+  if (!timingSafeEqualStr(checkHash, hash.toLowerCase())) {
     return { valid: false, error: 'invalid hash' }
   }
 
@@ -134,14 +128,14 @@ function resolveMaxAgeSeconds(): number {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_MAX_AGE_SECONDS
 }
 
-function json(body: unknown, status: number): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  })
-}
-
 serve(async (req) => {
+  const corsHeaders = corsHeadersFor(req)
+  const json = (body: unknown, status: number): Response =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -233,6 +227,6 @@ serve(async (req) => {
     }, 200)
 
   } catch (err) {
-    return json({ error: err instanceof Error ? err.message : 'Internal error' }, 500)
+    return json({ error: internalError(err) }, 500)
   }
 })
