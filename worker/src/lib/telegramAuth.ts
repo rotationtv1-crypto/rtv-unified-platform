@@ -1,37 +1,26 @@
-import { createHmac } from 'crypto'
+/**
+ * Backwards-compatible facade over `../telegram/initData`.
+ *
+ * REWRITE: the previous implementation imported `createHmac` from `node:crypto`,
+ * which does not exist on Cloudflare Workers. This module now performs all
+ * cryptography through the Web Crypto implementation in
+ * `../telegram/initData` — pure Web Crypto, fully async, no `Buffer`.
+ *
+ * Prefer importing from `../telegram/initData` directly in new code; these
+ * re-exports exist so existing call sites keep working (note the validator
+ * is now async and returns a structured result instead of a boolean).
+ */
 
-export function validateTelegramInitData(initData: string, botToken: string): boolean {
-  const params = new URLSearchParams(initData)
-  const hash = params.get('hash')
-  if (!hash) return false
+export {
+  validateTelegramInitData,
+  parseTelegramUser,
+  resolveMaxAgeSeconds,
+  timingSafeEqual,
+  DEFAULT_INITDATA_MAX_AGE_SECONDS,
+} from '../telegram/initData'
 
-  params.delete('hash')
-  const pairs: string[] = []
-  params.sort()
-  for (const [key, value] of params.entries()) {
-    pairs.push(`${key}=${value}`)
-  }
-  const dataCheckString = pairs.join('\n')
-
-  const secretKey = createHmac('sha256', 'WebAppData').update(botToken).digest()
-  const checkHash = createHmac('sha256', secretKey).update(dataCheckString).digest('hex')
-
-  return checkHash === hash
-}
-
-export function parseTelegramUser(initData: string): {
-  id: number
-  username?: string
-  first_name: string
-  last_name?: string
-  photo_url?: string
-} | null {
-  const params = new URLSearchParams(initData)
-  const userStr = params.get('user')
-  if (!userStr) return null
-  try {
-    return JSON.parse(userStr)
-  } catch {
-    return null
-  }
-}
+export type {
+  InitDataValidationResult,
+  TelegramUser,
+  ValidateInitDataOptions,
+} from '../telegram/initData'

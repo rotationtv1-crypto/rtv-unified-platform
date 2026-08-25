@@ -7,9 +7,9 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "build": "wrangler deploy --dry-run",
-    "db:migrate": "wrangler d1 migrations apply rotationtv-db --local",
-    "db:migrate:prod": "wrangler d1 migrations apply rotationtv-db",
-    "db:generate": "wrangler d1 migrations create rotationtv-db"
+    "db:migrate": "wrangler d1 migrations apply rtv-prod-db --local",
+    "db:migrate:prod": "wrangler d1 migrations apply rtv-prod-db",
+    "db:generate": "wrangler d1 migrations create rtv-prod-db"
   },
   "dependencies": {
     "hono": "^4.7.0"
