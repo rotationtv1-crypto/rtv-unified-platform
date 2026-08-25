@@ -22,7 +22,7 @@ export class BotRegistry {
     botUsername: string,
     webAppUrl: string,
     allowedOrigins: string[]
-  ): Promise<{ success: boolean; botId?: string; error?: string }> {
+  ): Promise<{ success: boolean; botId?: string; webhookSecret?: string; error?: string }> {
     const db = getDb(this.env.DB)
 
     const validation = await this.validateBotToken(botToken)
@@ -43,13 +43,20 @@ export class BotRegistry {
 
     await this.env.KV_CACHE.put(`bot_token:${botId}`, botToken, { expirationTtl: 0 })
 
+    // Generate a per-bot webhook secret. The caller configures it as
+    // `secret_token` in setWebhook; Telegram then sends it back in the
+    // X-Telegram-Bot-Api-Secret-Token header, which the callback route
+    // verifies in constant time. Returned ONCE here.
+    const webhookSecret = this.generateWebhookSecret()
+    await this.env.KV_CACHE.put(`bot_webhook_secret:${botId}`, webhookSecret, { expirationTtl: 0 })
+
     await db.exec(
       `INSERT INTO bot_registry (bot_id, bot_token_hash, bot_name, bot_username, web_app_url, allowed_origins, is_active)
        VALUES (?, ?, ?, ?, ?, ?, 1)`,
       [botId, tokenHash, botName, botUsername, webAppUrl, JSON.stringify(allowedOrigins)]
     )
 
-    return { success: true, botId }
+    return { success: true, botId, webhookSecret }
   }
 
   async getBot(botId: string): Promise<BotRegistration | null> {
@@ -77,6 +84,10 @@ export class BotRegistry {
     return this.env.KV_CACHE.get(`bot_token:${botId}`)
   }
 
+  async getWebhookSecret(botId: string): Promise<string | null> {
+    return this.env.KV_CACHE.get(`bot_webhook_secret:${botId}`)
+  }
+
   async listBots(): Promise<Pick<BotRegistration, 'id' | 'botName' | 'botUsername' | 'webAppUrl' | 'isActive'>[]> {
     const db = getDb(this.env.DB)
     const rows = await db.query<Record<string, unknown>>(
@@ -95,6 +106,7 @@ export class BotRegistry {
     const db = getDb(this.env.DB)
     await db.exec('UPDATE bot_registry SET is_active = 0 WHERE bot_id = ?', [botId])
     await this.env.KV_CACHE.delete(`bot_token:${botId}`)
+    await this.env.KV_CACHE.delete(`bot_webhook_secret:${botId}`)
   }
 
   private async validateBotToken(token: string): Promise<{ ok: boolean; username?: string }> {
@@ -105,6 +117,12 @@ export class BotRegistry {
     } catch {
       return { ok: false }
     }
+  }
+
+  private generateWebhookSecret(): string {
+    const bytes = new Uint8Array(32)
+    crypto.getRandomValues(bytes)
+    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
   }
 
   private async hashToken(token: string): Promise<string> {

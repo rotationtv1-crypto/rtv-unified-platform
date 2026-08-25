@@ -1,13 +1,9 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.21.0'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
+import { corsHeadersFor, internalError } from '../_shared/cors.ts'
 
 serve(async (req) => {
+  const corsHeaders = corsHeadersFor(req, 'POST, OPTIONS')
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -33,6 +29,7 @@ serve(async (req) => {
     })
 
     if (signInError) {
+      // Deliberately generic — do not reveal whether the email exists.
       return new Response(
         JSON.stringify({ error: 'Invalid email or password' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -74,7 +71,7 @@ serve(async (req) => {
 
   } catch (err) {
     return new Response(
-      JSON.stringify({ error: err.message }),
+      JSON.stringify({ error: internalError(err) }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }

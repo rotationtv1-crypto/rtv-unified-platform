@@ -147,7 +147,10 @@ export interface HonoVariables {
   }
   botId: string
   botToken: string
+  /** Internal user id, set by requireAuth from the verified session token. */
   userId: string
+  /** Telegram user id, set by requireAuth from the verified session token. */
+  telegramId: number
 }
 
 declare module 'hono' {
