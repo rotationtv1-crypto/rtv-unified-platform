@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useRTVStore } from '../store/rtvStore'
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://rotationtv-api.rotationtimmy.workers.dev'
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.rotationtv.network'
 
 export function useTelegramAuth() {
   const { setUser, setToken, user } = useRTVStore()
@@ -28,16 +28,22 @@ export function useTelegramAuth() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ initData }),
     })
-      .then((res) => res.json())
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+        if (!res.ok) {
+          throw new Error(data?.error || `Authentication failed (${res.status})`)
+        }
+        return data
+      })
       .then((data) => {
-        if (data.success) {
+        if (data?.success) {
           setUser(data.user)
           setToken(data.token)
         } else {
-          setError(data.error || 'Auth failed')
+          setError(data?.error || 'Auth failed')
         }
       })
-      .catch((err) => setError(err.message))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Authentication failed'))
       .finally(() => setIsReady(true))
   }, [setUser, setToken])
 
