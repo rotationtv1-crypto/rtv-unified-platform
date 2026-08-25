@@ -1,0 +1,143 @@
+name: Deploy RotationTV Platform
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rotationtv-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '24'
+
+jobs:
+  verify-frontend:
+    name: Verify frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build frontend
+        run: npm run build
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+
+  verify-worker:
+    name: Verify Cloudflare Worker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: worker/package.json
+
+      - name: Install worker dependencies
+        working-directory: worker
+        run: npm install --no-audit --no-fund
+
+      - name: Validate Worker bundle
+        working-directory: worker
+        run: npx wrangler deploy --dry-run --env production
+
+  deploy-worker:
+    name: Deploy API Worker
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [verify-frontend, verify-worker]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install worker dependencies
+        working-directory: worker
+        run: npm install --no-audit --no-fund
+
+      - name: Deploy Worker
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --env production
+
+  deploy-frontend:
+    name: Deploy WebApp to Cloudflare Pages
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [verify-frontend, verify-worker]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build WebApp
+        run: npm run build
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+
+      - name: Deploy WebApp
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler pages deploy dist --project-name=rotationtv-web-app
+
+  smoke-test:
+    name: Production smoke test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [deploy-worker, deploy-frontend]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Check API health
+        env:
+          PRODUCTION_API_BASE_URL: ${{ vars.PRODUCTION_API_BASE_URL }}
+        run: |
+          test -n "$PRODUCTION_API_BASE_URL"
+          curl --fail --silent --show-error --retry 5 --retry-delay 5 \
+            "$PRODUCTION_API_BASE_URL/health"
+
+      - name: Check WebApp
+        env:
+          PRODUCTION_WEBAPP_URL: ${{ vars.PRODUCTION_WEBAPP_URL }}
+        run: |
+          test -n "$PRODUCTION_WEBAPP_URL"
+          curl --fail --silent --show-error --retry 5 --retry-delay 5 \
+            "$PRODUCTION_WEBAPP_URL/"
