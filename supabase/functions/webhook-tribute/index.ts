@@ -15,13 +15,8 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
-
-  if (req.method !== 'POST') {
-    return jsonResponse({ error: 'method_not_allowed' }, 405)
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  if (req.method !== 'POST') return jsonResponse({ error: 'method_not_allowed' }, 405)
 
   const url = new URL(req.url)
   const source = url.searchParams.get('source') || 'tribute'
@@ -48,19 +43,14 @@ serve(async (req) => {
           await fetch(`https://api.telegram.org/bot${botToken}/answerPreCheckoutQuery`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              pre_checkout_query_id: payload.pre_checkout_query.id,
-              ok: true,
-            }),
+            body: JSON.stringify({ pre_checkout_query_id: payload.pre_checkout_query.id, ok: true }),
           })
         }
-
         return jsonResponse({ ok: true })
       }
 
       if (payload.message?.successful_payment) {
         const payment = payload.message.successful_payment
-
         const { data: transaction } = await supabaseAdmin.from('transactions').insert({
           provider: 'telegram_stars',
           provider_transaction_id: payment.telegram_payment_charge_id,
@@ -71,7 +61,6 @@ serve(async (req) => {
           metadata: payment,
           completed_at: new Date().toISOString(),
         }).select().single()
-
         return jsonResponse({ ok: true, transaction })
       }
 
@@ -79,7 +68,7 @@ serve(async (req) => {
     }
 
     if (source === 'tribute') {
-      // IMPORTANT: verify the exact raw body before JSON parsing or mutation.
+      // Verify the exact raw body before parsing JSON or writing payment data.
       const rawBody = await req.text()
       const signature = req.headers.get('trbt-signature')
       const apiKey = Deno.env.get('TRIBUTE_API_KEY')
@@ -89,8 +78,7 @@ serve(async (req) => {
         return jsonResponse({ error: 'webhook_not_configured' }, 503)
       }
 
-      const validSignature = await verifyTributeSignature(rawBody, signature, apiKey)
-      if (!validSignature) {
+      if (!(await verifyTributeSignature(rawBody, signature, apiKey))) {
         return jsonResponse({ error: 'invalid_webhook_signature' }, 401)
       }
 
@@ -98,8 +86,6 @@ serve(async (req) => {
       const payload = JSON.parse(rawBody)
       const eventType = payload.name || payload.event || 'unknown'
 
-      // Tribute retries failed deliveries. The raw-body hash gives us a stable
-      // idempotency key even when a provider event does not expose an event ID.
       const { error: eventInsertError } = await supabaseAdmin.from('webhook_events').insert({
         source: 'tribute',
         event_type: eventType,
@@ -109,15 +95,20 @@ serve(async (req) => {
       })
 
       if (eventInsertError?.code === '23505') {
-        return jsonResponse({ ok: true, duplicate: true })
-      }
+        const { data: existingEvent, error: lookupError } = await supabaseAdmin.from('webhook_events')
+          .select('processed')
+          .eq('source', 'tribute')
+          .eq('event_hash', eventHash)
+          .maybeSingle()
 
-      if (eventInsertError) {
+        if (lookupError) throw lookupError
+        if (existingEvent?.processed) return jsonResponse({ ok: true, duplicate: true })
+        // The first attempt did not complete. Continue processing so provider
+        // retries can recover the event. Transaction uniqueness handles races.
+      } else if (eventInsertError) {
         throw eventInsertError
       }
 
-      // Keep compatibility with the existing internal event contract while also
-      // accepting current Tribute event names such as new_donation.
       const tributeData = payload.data ?? payload.payload ?? payload
       const completedEvents = new Set([
         'payment.completed',
@@ -136,22 +127,25 @@ serve(async (req) => {
           tributeData.subscription_id ??
           eventHash,
         )
+        const amount = Number(tributeData.amount ?? tributeData.total_amount ?? 0)
+        const currency = tributeData.currency ?? 'XTR'
 
         const { data: transaction, error: transactionError } = await supabaseAdmin.from('transactions').insert({
           provider: 'tribute',
           provider_transaction_id: providerTransactionId,
-          amount: Number(tributeData.amount ?? tributeData.total_amount ?? 0),
-          currency: tributeData.currency ?? 'XTR',
+          amount,
+          currency,
           status: 'completed',
           item_type: eventType.includes('subscription') ? 'subscription' : 'tip',
           metadata: tributeData,
           completed_at: new Date().toISOString(),
         }).select().single()
 
-        // A provider retry may arrive concurrently. The unique provider
-        // transaction index makes the transaction write atomic and prevents a
-        // second creator-earnings increment.
         if (transactionError?.code === '23505') {
+          await supabaseAdmin.from('webhook_events')
+            .update({ processed: true, processed_at: new Date().toISOString() })
+            .eq('source', 'tribute')
+            .eq('event_hash', eventHash)
           return jsonResponse({ ok: true, duplicate: true })
         }
         if (transactionError) throw transactionError
@@ -160,8 +154,8 @@ serve(async (req) => {
           await supabaseAdmin.from('tributes').insert({
             sender_id: tributeData.sender_id,
             recipient_id: tributeData.recipient_id,
-            amount: Number(tributeData.amount ?? tributeData.total_amount ?? 0),
-            currency: tributeData.currency ?? 'XTR',
+            amount,
+            currency,
             message: tributeData.message,
             transaction_id: transaction?.id,
             status: 'completed',
@@ -169,16 +163,9 @@ serve(async (req) => {
 
           await supabaseAdmin.rpc('increment_creator_earnings', {
             creator_id: tributeData.recipient_id,
-            amount: Number(tributeData.amount ?? tributeData.total_amount ?? 0),
+            amount,
           })
         }
-
-        await supabaseAdmin.from('webhook_events')
-          .update({ processed: true, processed_at: new Date().toISOString() })
-          .eq('source', 'tribute')
-          .eq('event_hash', eventHash)
-
-        return jsonResponse({ ok: true, transaction })
       }
 
       await supabaseAdmin.from('webhook_events')
@@ -186,7 +173,7 @@ serve(async (req) => {
         .eq('source', 'tribute')
         .eq('event_hash', eventHash)
 
-      return jsonResponse({ ok: true, message: 'Event logged' })
+      return jsonResponse({ ok: true, message: completedEvents.has(eventType) ? 'Processed' : 'Event logged' })
     }
 
     const payload = await req.json()
@@ -196,7 +183,6 @@ serve(async (req) => {
       payload,
       processed: false,
     })
-
     return jsonResponse({ ok: true, message: 'Webhook received' })
   } catch (err) {
     console.error('Webhook processing failed', err)
