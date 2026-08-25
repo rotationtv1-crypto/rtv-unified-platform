@@ -5,13 +5,17 @@ import { BotRegistry } from '../telegram/botRegistry'
 import { CloudSDKClient } from '../telegram/cloudSdk'
 import { SyncEngine } from '../telegram/syncEngine'
 import { validateInitData } from '../telegram/initData'
+import { requireAdmin, timingSafeEqualString } from '../lib/auth'
 import { createMiddleware } from 'hono/factory'
 
 const app = new Hono<{ Bindings: Env }>()
 
-// ===== BOT REGISTRATION =====
+// ===== BOT REGISTRATION (admin only) =====
+//
+// SECURITY: these endpoints manage bot credentials and operator-level bot
+// control. They were previously callable by anyone on the internet.
 
-app.post('/bots/register', async (c) => {
+app.post('/bots/register', requireAdmin, async (c) => {
   const body = await c.req.json() as {
     botToken: string
     botName: string
@@ -36,17 +40,19 @@ app.post('/bots/register', async (c) => {
   return c.json({
     success: true,
     botId: result.botId,
-    message: 'Bot registered successfully'
+    // One-time disclosure: configure this as `secret_token` in setWebhook.
+    webhookSecret: result.webhookSecret,
+    message: 'Bot registered successfully. Set the webhook with secret_token = webhookSecret.'
   })
 })
 
-app.get('/bots', async (c) => {
+app.get('/bots', requireAdmin, async (c) => {
   const registry = new BotRegistry(c.env)
   const bots = await registry.listBots()
   return c.json({ bots })
 })
 
-// ===== WEBAPP INIT =====
+// ===== WEBAPP INIT (public — this is the Mini App entry point) =====
 
 app.post('/bot/:botId/webapp/init', async (c) => {
   const botId = c.req.param('botId')
@@ -100,14 +106,31 @@ app.post('/bot/:botId/webapp/init', async (c) => {
 })
 
 // ===== WEBHOOK CALLBACKS =====
+//
+// SECURITY: Telegram supports a per-webhook secret token delivered in the
+// X-Telegram-Bot-Api-Secret-Token header. Without verifying it, anyone can
+// POST forged updates. Verified (constant-time) against the per-bot secret
+// generated at registration. Fail-closed when no secret is on record.
 
 app.post('/bot/:botId/callback', async (c) => {
   const botId = c.req.param('botId')
-  const update = await c.req.json() as Record<string, unknown>
 
   const registry = new BotRegistry(c.env)
   const bot = await registry.getBot(botId)
   if (!bot) return c.json({ error: 'Bot not found' }, 404)
+
+  const expectedSecret = await registry.getWebhookSecret(botId)
+  if (!expectedSecret) {
+    // Fail closed: this bot was registered before webhook secrets existed.
+    // Re-register to obtain a secret, then configure setWebhook accordingly.
+    return c.json({ error: 'Webhook secret not configured for this bot' }, 503)
+  }
+  const providedSecret = c.req.header('X-Telegram-Bot-Api-Secret-Token') ?? ''
+  if (!providedSecret || !timingSafeEqualString(providedSecret, expectedSecret)) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+
+  const update = await c.req.json() as Record<string, unknown>
 
   const db = getDb(c.env.DB)
   await db.exec(
@@ -140,7 +163,11 @@ app.post('/bot/:botId/callback', async (c) => {
   return c.json({ ok: true })
 })
 
-// ===== CLOUD SDK PROXY =====
+// ===== CLOUD SDK PROXY (admin only) =====
+//
+// SECURITY: these endpoints act AS the bot (send/edit/delete messages,
+// arbitrary Bot API methods via /invoke). Previously unauthenticated —
+// effectively a free proxy for every registered bot token.
 
 const botAuthMiddleware = createMiddleware<{ Bindings: Env }>(async (c, next) => {
   const botId = c.req.param('botId')
@@ -151,6 +178,7 @@ const botAuthMiddleware = createMiddleware<{ Bindings: Env }>(async (c, next) =>
   await next()
 })
 
+app.use('/bot/:botId/cloud-sdk/*', requireAdmin)
 app.use('/bot/:botId/cloud-sdk/*', botAuthMiddleware)
 
 app.post('/bot/:botId/cloud-sdk/sendMessage', async (c) => {
@@ -203,7 +231,8 @@ app.post('/bot/:botId/cloud-sdk/invoke', async (c) => {
 
 // ===== VERSION SYNC =====
 
-app.post('/bot/:botId/sync/publish', async (c) => {
+// Publish is operator-level: it controls what the Mini App serves. Admin only.
+app.post('/bot/:botId/sync/publish', requireAdmin, async (c) => {
   const botId = c.req.param('botId')
   const body = await c.req.json() as {
     versionTag: string
@@ -223,6 +252,7 @@ app.post('/bot/:botId/sync/publish', async (c) => {
   return c.json({ success: true, versionId: result.versionId })
 })
 
+// Config read is the Mini App bootstrap path — stays public.
 app.get('/bot/:botId/sync/config', async (c) => {
   const botId = c.req.param('botId')
   const userId = c.req.query('userId')

@@ -1,11 +1,13 @@
 import { Hono } from 'hono'
 import type { Env } from '../types'
 import { getDb } from '../lib/db'
+import { requireAuth } from '../lib/auth'
 
 const app = new Hono<{ Bindings: Env }>()
 
-// POST /api/tips — send a tip/gift
-app.post('/', async (c) => {
+// POST /api/tips — send a tip/gift.
+// Sender identity comes from the verified session token, never from a header.
+app.post('/', requireAuth, async (c) => {
   const body = await c.req.json<{
     stream_id: string
     receiver_id: string
@@ -15,13 +17,33 @@ app.post('/', async (c) => {
     message?: string
     is_anonymous?: boolean
   }>()
-  const senderId = c.req.header('X-User-Id')
+  const senderId = c.get('userId') as string
 
-  if (!senderId) {
-    return c.json({ error: 'Unauthorized' }, 401)
+  // --- Input validation (previously absent: negative amounts minted money) ---
+  if (!body || typeof body.amount_stars !== 'number' ||
+      !Number.isInteger(body.amount_stars) || body.amount_stars <= 0) {
+    return c.json({ error: 'amount_stars must be a positive integer' }, 400)
+  }
+  if (body.amount_stars > 1_000_000) {
+    return c.json({ error: 'amount_stars exceeds per-tip maximum' }, 400)
+  }
+  if (!body.receiver_id || typeof body.receiver_id !== 'string') {
+    return c.json({ error: 'receiver_id is required' }, 400)
+  }
+  if (body.receiver_id === senderId) {
+    return c.json({ error: 'Cannot tip yourself' }, 400)
   }
 
   const db = getDb(c.env.D1)
+
+  // Verify receiver exists
+  const receiver = await db.queryOne<{ id: string }>(
+    'SELECT id FROM users WHERE id = ?',
+    [body.receiver_id]
+  )
+  if (!receiver) {
+    return c.json({ error: 'Receiver not found' }, 404)
+  }
 
   // Verify sender has enough balance
   const sender = await db.queryOne<{ balance_stars: number; is_creator: number }>(

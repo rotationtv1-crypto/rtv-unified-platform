@@ -1,10 +1,11 @@
 import { Hono } from 'hono'
 import type { Env } from '../types'
 import { getDb } from '../lib/db'
+import { requireAuth } from '../lib/auth'
 
 const app = new Hono<{ Bindings: Env }>()
 
-// GET /api/vod — list VOD content
+// GET /api/vod — list VOD content (public)
 app.get('/', async (c) => {
   const db = getDb(c.env.D1)
   const category = c.req.query('category')
@@ -28,7 +29,7 @@ app.get('/', async (c) => {
   return c.json({ items })
 })
 
-// GET /api/vod/:id — get VOD details
+// GET /api/vod/:id — get VOD details (public)
 app.get('/:id', async (c) => {
   const id = c.req.param('id')
   const db = getDb(c.env.D1)
@@ -44,8 +45,8 @@ app.get('/:id', async (c) => {
   return c.json({ item })
 })
 
-// POST /api/vod — upload VOD metadata
-app.post('/', async (c) => {
+// POST /api/vod — upload VOD metadata (authenticated)
+app.post('/', requireAuth, async (c) => {
   const body = await c.req.json<{
     title: string
     description?: string
@@ -54,11 +55,7 @@ app.post('/', async (c) => {
     category: string
     tags?: string
   }>()
-  const userId = c.req.header('X-User-Id')
-
-  if (!userId) {
-    return c.json({ error: 'Unauthorized' }, 401)
-  }
+  const userId = c.get('userId') as string
 
   const db = getDb(c.env.D1)
   const result = await db.exec(

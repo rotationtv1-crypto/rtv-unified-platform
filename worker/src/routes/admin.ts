@@ -1,17 +1,12 @@
 import { Hono } from 'hono'
 import type { Env } from '../types'
 import { getDb } from '../lib/db'
+import { requireAdmin } from '../lib/auth'
 
 const app = new Hono<{ Bindings: Env }>()
 
-// Middleware: require admin secret
-app.use('*', async (c, next) => {
-  const secret = c.req.header('X-Admin-Secret')
-  if (secret !== c.env.ADMIN_SECRET) {
-    return c.json({ error: 'Forbidden' }, 403)
-  }
-  await next()
-})
+// Middleware: constant-time, fail-closed admin secret check (lib/auth.ts).
+app.use('*', requireAdmin)
 
 // GET /api/admin/users — list all users
 app.get('/users', async (c) => {
@@ -35,6 +30,11 @@ app.get('/payouts', async (c) => {
 app.patch('/payouts/:id', async (c) => {
   const id = c.req.param('id')
   const body = await c.req.json<{ status: string; notes?: string }>()
+
+  const allowed = ['pending', 'processing', 'completed', 'failed']
+  if (!allowed.includes(body.status)) {
+    return c.json({ error: `status must be one of: ${allowed.join(', ')}` }, 400)
+  }
 
   const db = getDb(c.env.D1)
   await db.exec(

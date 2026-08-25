@@ -1,10 +1,11 @@
 import { Hono } from 'hono'
 import type { Env } from '../types'
 import { getDb } from '../lib/db'
+import { requireAuth } from '../lib/auth'
 
 const app = new Hono<{ Bindings: Env }>()
 
-// GET /api/streams — list active streams
+// GET /api/streams — list active streams (public)
 app.get('/', async (c) => {
   const db = getDb(c.env.D1)
   const status = c.req.query('status') || 'live'
@@ -16,7 +17,7 @@ app.get('/', async (c) => {
   return c.json({ streams })
 })
 
-// GET /api/streams/:id — get stream details
+// GET /api/streams/:id — get stream details (public)
 app.get('/:id', async (c) => {
   const id = c.req.param('id')
   const db = getDb(c.env.D1)
@@ -37,14 +38,10 @@ app.get('/:id', async (c) => {
   return c.json({ stream, recentTips })
 })
 
-// POST /api/streams — create a new stream (creator only)
-app.post('/', async (c) => {
+// POST /api/streams — create a new stream (creator only, authenticated)
+app.post('/', requireAuth, async (c) => {
   const body = await c.req.json<{ title: string; description?: string; channel_id?: string }>()
-  const userId = c.req.header('X-User-Id')
-
-  if (!userId) {
-    return c.json({ error: 'Unauthorized' }, 401)
-  }
+  const userId = c.get('userId') as string
 
   const db = getDb(c.env.D1)
 
@@ -63,16 +60,21 @@ app.post('/', async (c) => {
   return c.json({ success: true, streamId: String(streamId) }, 201)
 })
 
-// PATCH /api/streams/:id/status — update stream status
-app.patch('/:id/status', async (c) => {
+// PATCH /api/streams/:id/status — update stream status (owner only, authenticated)
+app.patch('/:id/status', requireAuth, async (c) => {
   const id = c.req.param('id')
   const body = await c.req.json<{ status: string; hls_url?: string }>()
-  const userId = c.req.header('X-User-Id')
+  const userId = c.get('userId') as string
+
+  const allowed = ['pending', 'live', 'ended', 'banned']
+  if (!allowed.includes(body.status)) {
+    return c.json({ error: `status must be one of: ${allowed.join(', ')}` }, 400)
+  }
 
   const db = getDb(c.env.D1)
   const stream = await db.queryOne<{ user_id: string }>('SELECT user_id FROM streams WHERE id = ?', [id])
 
-  if (!stream || stream.user_id !== userId) {
+  if (!stream || String(stream.user_id) !== String(userId)) {
     return c.json({ error: 'Unauthorized' }, 403)
   }
 

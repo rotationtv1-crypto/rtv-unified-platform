@@ -1,15 +1,18 @@
 import { Hono } from 'hono'
 import type { Env } from '../types'
 import { getDb } from '../lib/db'
+import { requireAuth } from '../lib/auth'
 
 const app = new Hono<{ Bindings: Env }>()
 
-// GET /api/payouts — list user's payouts
+// All payout routes require a verified session token. Identity comes from the
+// token — never from a client-supplied X-User-Id header (any client can set
+// one, which previously allowed viewing/spending anyone's balance).
+app.use('*', requireAuth)
+
+// GET /api/payouts — list the authenticated user's payouts
 app.get('/', async (c) => {
-  const userId = c.req.header('X-User-Id')
-  if (!userId) {
-    return c.json({ error: 'Unauthorized' }, 401)
-  }
+  const userId = c.get('userId') as string
 
   const db = getDb(c.env.D1)
   const payouts = await db.query('SELECT * FROM payouts WHERE user_id = ? ORDER BY requested_at DESC', [userId])
@@ -23,10 +26,16 @@ app.post('/', async (c) => {
     method: 'usdt' | 'rub' | 'eur'
     destination: string
   }>()
-  const userId = c.req.header('X-User-Id')
+  const userId = c.get('userId') as string
 
-  if (!userId) {
-    return c.json({ error: 'Unauthorized' }, 401)
+  if (!body || typeof body.amount_usd !== 'number' || !Number.isFinite(body.amount_usd)) {
+    return c.json({ error: 'amount_usd must be a finite number' }, 400)
+  }
+  if (!['usdt', 'rub', 'eur'].includes(body.method)) {
+    return c.json({ error: 'method must be one of: usdt, rub, eur' }, 400)
+  }
+  if (typeof body.destination !== 'string' || body.destination.trim().length < 4) {
+    return c.json({ error: 'destination is required' }, 400)
   }
 
   // Minimum payout thresholds
@@ -65,7 +74,7 @@ app.post('/', async (c) => {
 
     const result = await db.exec(
       'INSERT INTO payouts (user_id, amount_usd, amount_rtv, method, destination, status, requested_at) VALUES (?, ?, ?, ?, ?, ?, datetime("now"))',
-      [userId, body.amount_usd, rtvNeeded, body.method, body.destination, 'pending']
+      [userId, body.amount_usd, rtvNeeded, body.method, body.destination.trim(), 'pending']
     )
 
     await db.exec('COMMIT')
