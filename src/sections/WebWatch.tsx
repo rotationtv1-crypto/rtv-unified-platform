@@ -60,7 +60,11 @@ export function WebWatch() {
 
       {/* Player */}
       <div className="aspect-video rounded-xl overflow-hidden bg-gray-900 border border-gray-800">
-        <LivePlayer channelId={currentChannel?.id || id || 'rtv-main'} />
+        <LivePlayer
+          channelId={currentChannel?.id || id || 'rtv-main'}
+          hlsUrl={currentChannel?.hlsUrl}
+          streamUid={currentChannel?.streamUid}
+        />
       </div>
 
       {/* Info */}

@@ -23,8 +23,9 @@ export interface Channel {
   isLive: boolean
   isFast?: boolean
   hlsUrl?: string
+  streamUid?: string
   currentProgram?: string
-  viewerCount: number
+  viewerCount?: number
 }
 
 export interface Stream {

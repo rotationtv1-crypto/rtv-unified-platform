@@ -54,13 +54,39 @@ npx wrangler secret put CF_ACCOUNT_ID --env production
 # Admin
 npx wrangler secret put ADMIN_SECRET --env production
 npx wrangler secret put RTV_API_SECRET --env production
+
+# Stream customer hostname (required for live-input signed playback)
+npx wrangler secret put CF_STREAM_CUSTOMER_SUBDOMAIN --env production
 ```
+
+Attach the native Stream binding in `worker/wrangler.toml`:
+
+```toml
+[env.production.stream]
+binding = "STREAM"
+```
+
+Playback tokens are generated inside the Worker via `env.STREAM.video(uid).generateToken()`. Do not HMAC with the API token.
 
 **Getting `CF_STREAM_API_TOKEN`:**
 1. Go to https://dash.cloudflare.com/profile/api-tokens
 2. Create Token > Custom token
 3. Permissions: Account > Cloudflare Stream > Edit
 4. Include: All accounts
+
+### 1.4 Live ingest/playback (rtv-ai-gateway)
+
+The public ingest/playback API is the already-live Worker `rtv-ai-gateway`. ECS hosts LiveKit/media only and is not a public API.
+
+Frontend build variables:
+
+```
+VITE_API_URL=https://rtv-api.rotationtimmy.workers.dev/api
+VITE_STREAM_GATEWAY_URL=https://rtv-ai-gateway.rotationtvaicom.workers.dev
+VITE_DEFAULT_STREAM_UID=<cloudflare-stream-live-input-uid>
+```
+
+Set those as GitHub Actions variables (not secrets). Cloudflare deploy credentials stay in GitHub Secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
 
 ## 2. Database Migration
 
@@ -136,14 +162,10 @@ Ensure the worker's CORS origin includes your frontend domain:
 ```typescript
 // worker/src/index.ts
 app.use('*', cors({
-  origin: [
-    'https://rotationtv.network',
-    'https://*.pages.dev',
-    'https://*.workers.dev',
-    'https://t.me',
-    'https://*.kimi.page',        // your deployed frontend
-  ],
-  // ...
+  origin: (origin) => {
+    // exact hosts + *.pages.dev / *.workers.dev / *.kimi.page
+    return origin
+  },
 }))
 ```
 
