@@ -1,15 +1,23 @@
+export interface StreamBinding {
+  video(id: string): {
+    generateToken(): Promise<string>
+  }
+}
+
 export interface Env {
   DB: D1Database
   D1: D1Database
   KV_RATE_LIMIT: KVNamespace
   KV_CACHE: KVNamespace
   KV_TOKENS?: KVNamespace
+  STREAM: StreamBinding
   TELEGRAM_BOT_TOKEN: string
   ADMIN_SECRET: string
   JWT_SECRET: string
   TELEGRAM_INITDATA_MAX_AGE?: string
   CF_STREAM_API_TOKEN?: string
   CF_ACCOUNT_ID?: string
+  CF_STREAM_CUSTOMER_SUBDOMAIN?: string
   ENVIRONMENT: string
 }
 
@@ -135,7 +143,6 @@ export interface CloudflareVOD {
   created_at: string
 }
 
-// Hono context variables for Telegram auth
 export interface HonoVariables {
   telegramUser: {
     id: number

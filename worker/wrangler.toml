@@ -18,6 +18,12 @@ id = "96e51e2e7a1040e58d794c5f70d74d9d"
 binding = "KV_CACHE"
 id = "5bcff7ee359a4422b35d800e4ebae80e"
 
+[env.production.stream]
+binding = "STREAM"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+
 # --- Secrets (do NOT put values in this file) --------------------------------
 # Required runtime secrets, set them once with:
 #   npx wrangler secret put TELEGRAM_BOT_TOKEN --env production
@@ -25,6 +31,8 @@ id = "5bcff7ee359a4422b35d800e4ebae80e"
 #   npx wrangler secret put ADMIN_SECRET --env production
 # Optional: override the initData freshness window (seconds, default 86400):
 #   npx wrangler secret put TELEGRAM_INITDATA_MAX_AGE --env production
+# Optional: Stream customer hostname, e.g. customer-xxxx.cloudflarestream.com:
+#   npx wrangler secret put CF_STREAM_CUSTOMER_SUBDOMAIN --env production
 
 # --- Optional: KV namespace for token/session storage ------------------------
 # The app works without it (session tokens are stateless HMAC tokens), but if
