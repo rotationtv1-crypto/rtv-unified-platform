@@ -1,6 +1,6 @@
 export interface StreamBinding {
   video(id: string): {
-    generateToken(): Promise<string>
+    generateToken(options?: { exp?: number; downloadable?: boolean }): Promise<string>
   }
 }
 
@@ -18,6 +18,7 @@ export interface Env {
   CF_STREAM_API_TOKEN?: string
   CF_ACCOUNT_ID?: string
   CF_STREAM_CUSTOMER_SUBDOMAIN?: string
+  RTV_API_SECRET?: string
   ENVIRONMENT: string
 }
 

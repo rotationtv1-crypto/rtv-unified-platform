@@ -13,12 +13,28 @@ const requireStreamCreds = createMiddleware<{ Bindings: Env }>(async (c, next) =
   await next()
 })
 
+const requireAdmin = createMiddleware<{ Bindings: Env }>(async (c, next) => {
+  const expected = c.env.ADMIN_SECRET
+  if (!expected) {
+    return c.json({ error: 'Admin secret is not configured' }, 503)
+  }
+  const header = c.req.header('Authorization') || ''
+  const token = header.startsWith('Bearer ') ? header.slice(7) : ''
+  if (token !== expected) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+  await next()
+})
+
+// Hono `/*` does not match the collection path itself.
+app.use('/live-inputs', requireStreamCreds)
 app.use('/live-inputs/*', requireStreamCreds)
+app.use('/vod', requireStreamCreds)
 app.use('/vod/*', requireStreamCreds)
 app.use('/health/*', requireStreamCreds)
 app.use('/analytics/*', requireStreamCreds)
 
-app.post('/live-inputs', async (c) => {
+app.post('/live-inputs', requireAdmin, async (c) => {
   const body = await c.req.json() as { name: string; channelId?: string; meta?: Record<string, string> }
   if (!body.name?.trim()) return c.json({ error: 'name is required' }, 400)
 
@@ -46,7 +62,7 @@ app.get('/live-inputs', async (c) => {
   return c.json({ inputs: rows })
 })
 
-app.delete('/live-inputs/:uid', async (c) => {
+app.delete('/live-inputs/:uid', requireAdmin, async (c) => {
   const uid = c.req.param('uid')
   const client = new CloudflareStreamClient(c.env)
   await client.deleteLiveInput(uid)
@@ -70,7 +86,7 @@ app.get('/vod/:uid', async (c) => {
   return c.json({ video })
 })
 
-app.delete('/vod/:uid', async (c) => {
+app.delete('/vod/:uid', requireAdmin, async (c) => {
   const uid = c.req.param('uid')
   const client = new CloudflareStreamClient(c.env)
   await client.deleteVideo(uid)
@@ -113,7 +129,9 @@ app.get('/playback/:uid', async (c) => {
   // Always issue a short-lived signed token. This prevents the frontend from
   // embedding an unrestricted Stream URL and keeps playback authorization at
   // the API boundary.
-  const token = await c.env.STREAM.video(uid).generateToken()
+  const token = await c.env.STREAM.video(uid).generateToken({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+  })
 
   const client = new CloudflareStreamClient(c.env)
   let hls: string

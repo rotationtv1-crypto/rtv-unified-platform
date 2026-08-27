@@ -16,10 +16,33 @@ import { errorHandler } from './lib/errorHandler'
 import telegramRoutes from './routes/telegram'
 import streamingRoutes from './routes/streaming'
 
+const EXACT_ORIGINS = new Set([
+  'https://rotationtv.network',
+  'https://www.rotationtv.network',
+  'https://app.rotationtv.network',
+  'https://t.me',
+])
+
+function isAllowedOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin)
+    if (EXACT_ORIGINS.has(origin)) return true
+    const host = url.hostname
+    if (host === 'localhost' || host === '127.0.0.1') return true
+    return (
+      host.endsWith('.pages.dev') ||
+      host.endsWith('.workers.dev') ||
+      host.endsWith('.kimi.page')
+    )
+  } catch {
+    return false
+  }
+}
+
 const app = new Hono<{ Bindings: Env }>()
 
 app.use('*', cors({
-  origin: ['https://rotationtv.network', 'https://*.pages.dev', 'https://*.workers.dev', 'https://t.me', 'https://*.kimi.page'],
+  origin: (origin) => (origin && isAllowedOrigin(origin) ? origin : ''),
   allowHeaders: ['Content-Type', 'Authorization', 'X-Telegram-Init-Data', 'X-Bot-Id'],
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   maxAge: 86400,

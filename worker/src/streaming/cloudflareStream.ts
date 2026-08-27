@@ -1,3 +1,5 @@
+import type { StreamBinding } from '../types'
+
 export interface CloudflareStreamClientOptions {
   accountId: string
   apiToken: string
@@ -73,7 +75,7 @@ export class CloudflareStreamClient {
       method: 'POST',
       body: JSON.stringify({
         meta: { name, ...meta },
-        recording: { mode: 'automatic', timeoutSeconds: 10, requireSignedURLs: false },
+        recording: { mode: 'automatic', timeoutSeconds: 10, requireSignedURLs: true },
       }),
     })
   }
@@ -81,6 +83,10 @@ export class CloudflareStreamClient {
   async listLiveInputs(): Promise<LiveInput[]> {
     const result = await this.request<{ liveInputs: LiveInput[] }>('/live_inputs')
     return result.liveInputs || []
+  }
+
+  async getLiveInput(uid: string): Promise<LiveInput> {
+    return this.request<LiveInput>(`/live_inputs/${uid}`)
   }
 
   async deleteLiveInput(uid: string): Promise<void> {
@@ -106,7 +112,7 @@ export class CloudflareStreamClient {
    */
   async getPlaybackUrl(
     uid: string,
-    streamBinding?: Stream,
+    streamBinding?: StreamBinding,
     options: { requireToken?: boolean } = {}
   ): Promise<{ hls: string; dash: string; thumbnail: string; token?: string }> {
     const video = await this.getVideo(uid)
@@ -119,7 +125,9 @@ export class CloudflareStreamClient {
       throw new Error('Cloudflare Stream binding is required for signed playback')
     }
 
-    const token = await streamBinding.video(uid).generateToken()
+    const token = await streamBinding.video(uid).generateToken({
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    })
     return {
       hls: replaceStreamAssetId(video.playback.hls, token),
       dash: replaceStreamAssetId(video.playback.dash, token),

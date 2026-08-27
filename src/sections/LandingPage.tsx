@@ -38,7 +38,11 @@ export function LandingPage() {
       <section className="relative rounded-2xl overflow-hidden bg-gray-900/50 border border-gray-800">
         <div className="aspect-video max-h-[500px]">
           {isPlaying ? (
-            <LivePlayer channelId={currentChannel?.id || 'rtv-main'} />
+            <LivePlayer
+              channelId={currentChannel?.id || 'rtv-main'}
+              hlsUrl={currentChannel?.hlsUrl}
+              streamUid={currentChannel?.streamUid}
+            />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center bg-gray-800/50">
               <div className="w-20 h-20 rounded-full bg-blue-600/20 flex items-center justify-center mb-4 cursor-pointer hover:bg-blue-600/30 transition-colors"

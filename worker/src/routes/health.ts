@@ -17,8 +17,9 @@ app.get('/health', (c) => {
   return c.json({
     status: 'healthy',
     uptime: '100%',
-    d1: !!c.env.D1,
+    d1: !!(c.env.DB || c.env.D1),
     kv: !!c.env.KV_RATE_LIMIT,
+    stream: !!c.env.STREAM,
   })
 })
 

@@ -2,6 +2,10 @@ name = "rtv-api"
 main = "src/index.ts"
 compatibility_date = "2025-03-20"
 
+# Default (CI dry-run / wrangler dev without --env). Production IDs live under [env.production].
+[stream]
+binding = "STREAM"
+
 [env.production]
 name = "rtv-api"
 
@@ -9,6 +13,14 @@ name = "rtv-api"
 binding = "DB"
 database_name = "rtv-prod-db"
 database_id = "4c51f100-3de8-4fc2-a355-08ae412077e9"
+migrations_dir = "../d1/migrations"
+
+# Alias used by existing route handlers that read c.env.D1.
+[[env.production.d1_databases]]
+binding = "D1"
+database_name = "rtv-prod-db"
+database_id = "4c51f100-3de8-4fc2-a355-08ae412077e9"
+migrations_dir = "../d1/migrations"
 
 [[env.production.kv_namespaces]]
 binding = "KV_RATE_LIMIT"
@@ -31,8 +43,19 @@ ENVIRONMENT = "production"
 #   npx wrangler secret put ADMIN_SECRET --env production
 # Optional: override the initData freshness window (seconds, default 86400):
 #   npx wrangler secret put TELEGRAM_INITDATA_MAX_AGE --env production
-# Optional: Stream customer hostname, e.g. customer-xxxx.cloudflarestream.com:
+# Stream management (create/delete live inputs + VOD):
+#   npx wrangler secret put CF_STREAM_API_TOKEN --env production
+#   npx wrangler secret put CF_ACCOUNT_ID --env production
+# Stream customer hostname, e.g. customer-xxxx.cloudflarestream.com:
 #   npx wrangler secret put CF_STREAM_CUSTOMER_SUBDOMAIN --env production
+#
+# GitHub Actions (repo Settings → Secrets and variables → Actions → production):
+#   CLOUDFLARE_API_TOKEN    # Pages + Workers deploy token
+#   CLOUDFLARE_ACCOUNT_ID   # Account that owns rtv-api / rotationtv-web-app
+# Variables:
+#   VITE_API_URL
+#   VITE_STREAM_GATEWAY_URL  # https://rtv-ai-gateway.rotationtvaicom.workers.dev
+#   VITE_DEFAULT_STREAM_UID  # optional Cloudflare Stream live-input uid
 
 # --- Optional: KV namespace for token/session storage ------------------------
 # The app works without it (session tokens are stateless HMAC tokens), but if
