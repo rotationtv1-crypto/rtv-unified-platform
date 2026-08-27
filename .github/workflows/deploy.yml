@@ -14,7 +14,7 @@ concurrency:
   group: production-deploy-${{ github.ref }}
   cancel-in-progress: false
 
-# GitHub environment `production` must provide these names (values stay in the secret store):
+# GitHub environment `Production` must provide these names (values stay in the secret store):
 #   secrets.CLOUDFLARE_API_TOKEN
 #   secrets.CLOUDFLARE_ACCOUNT_ID
 #   secrets.SUPABASE_ACCESS_TOKEN          (only if Tribute function deploy is enabled)
@@ -76,7 +76,7 @@ jobs:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     needs: [verify, tribute-tests]
     runs-on: ubuntu-latest
-    environment: production
+    environment: Production
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -102,7 +102,7 @@ jobs:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     needs: [verify, tribute-tests]
     runs-on: ubuntu-latest
-    environment: production
+    environment: Production
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -133,7 +133,7 @@ jobs:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_SUPABASE_FUNCTIONS == 'true' }}
     needs: [verify, tribute-tests]
     runs-on: ubuntu-latest
-    environment: production
+    environment: Production
     steps:
       - name: Checkout
         uses: actions/checkout@v4
