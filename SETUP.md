@@ -211,7 +211,7 @@ npx wrangler d1 migrations apply rtv-local-db --local --skip-drizzle
 | File | Purpose |
 |------|---------|
 | `frontend/src/App.tsx` | Mode detection (Telegram vs Web) |
-| `frontend/src/sections/MiniAppLayout.tsx` | Telegram tab-based UI |
+| Telegram Mini App shell | Retired. Cable player is `rtv-broadcast` (web only). |
 | `frontend/src/sections/WebLayout.tsx` | Web top-nav + routing UI |
 | `frontend/src/sections/LandingPage.tsx` | Marketing homepage |
 | `frontend/src/store/rtvStore.ts` | Global state (Zustand) |
