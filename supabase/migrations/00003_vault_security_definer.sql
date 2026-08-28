@@ -8,9 +8,6 @@ CREATE SCHEMA IF NOT EXISTS app;
 REVOKE ALL ON SCHEMA app FROM PUBLIC;
 GRANT USAGE ON SCHEMA app TO service_role;
 
--- ---------------------------------------------------------------------------
--- Vault surface: ciphertext table stays, plaintext view is locked down.
--- ---------------------------------------------------------------------------
 DO $$
 BEGIN
   IF EXISTS (
@@ -25,7 +22,6 @@ BEGIN
 END
 $$;
 
--- Allowlist of names Edge Functions / RPCs may request.
 CREATE TABLE IF NOT EXISTS app.vault_allowlist (
   name TEXT PRIMARY KEY,
   description TEXT NOT NULL DEFAULT '',
@@ -67,17 +63,13 @@ BEGIN
    WHERE d.name = p_name
    LIMIT 1;
 
-  RETURN v; -- NULL if the row was not created in Vault UI yet
+  RETURN v;
 END;
 $$;
-
-COMMENT ON FUNCTION app.vault_secret(TEXT) IS
-  'Returns one allowlisted Vault plaintext. service_role only. No client GRANT.';
 
 REVOKE ALL ON FUNCTION app.vault_secret(TEXT) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION app.vault_secret(TEXT) TO service_role;
 
--- Existence check without returning the value (safe for operator dashboards).
 CREATE OR REPLACE FUNCTION app.vault_secret_configured(p_name TEXT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -100,9 +92,30 @@ $$;
 REVOKE ALL ON FUNCTION app.vault_secret_configured(TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION app.vault_secret_configured(TEXT) TO service_role;
 
--- ---------------------------------------------------------------------------
--- Earnings increment used by webhook-tribute.
--- ---------------------------------------------------------------------------
+-- PostgREST default schema is public.
+CREATE OR REPLACE FUNCTION public.vault_secret(p_name TEXT)
+RETURNS TEXT
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, app
+AS $$
+  SELECT app.vault_secret(p_name);
+$$;
+
+CREATE OR REPLACE FUNCTION public.vault_secret_configured(p_name TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, app
+AS $$
+  SELECT app.vault_secret_configured(p_name);
+$$;
+
+REVOKE ALL ON FUNCTION public.vault_secret(TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.vault_secret_configured(TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.vault_secret(TEXT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.vault_secret_configured(TEXT) TO service_role;
+
 CREATE OR REPLACE FUNCTION public.increment_creator_earnings(
   creator_id UUID,
   amount NUMERIC
