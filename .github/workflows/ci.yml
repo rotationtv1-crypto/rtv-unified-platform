@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Type Check & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install frontend deps
+        run: npm install --no-audit --no-fund
+
+      - name: TypeScript check (frontend)
+        run: npx tsc --noEmit
+
+      - name: Build frontend
+        run: npm run build
+        env:
+          VITE_API_URL: "https://rtv-api.rotationtv.workers.dev"
+          VITE_STREAM_GATEWAY_URL: "https://customer-streams.cloudflarestream.com"
+
+      - name: Install worker deps
+        working-directory: worker
+        run: npm install --no-audit --no-fund
+
+      - name: TypeScript check (worker)
+        working-directory: worker
+        run: npx tsc --noEmit
+
+      - name: Build worker
+        working-directory: worker
+        run: npm run build
+
+  secret-scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan for secrets
+        run: |
+          PATTERNS='(sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|cfut_[a-zA-Z0-9]{40,}|AKIA[0-9A-Z]{16})'
+          HITS=$(find . -type f \( -name '*.ts' -o -name '*.js' -o -name '*.json' -o -name '*.yml' -o -name '*.toml' \) \
+            -not -path './node_modules/*' -not -path './.git/*' \
+            -exec grep -lE "$PATTERNS" {} \; | grep -v '.example' || true)
+          if [ -n "$HITS" ]; then
+            echo "::error::Secrets detected in: $HITS"
+            exit 1
+          fi
+          echo "✅ Clean"
+
+  tribute-tests:
+    name: Tribute Webhook Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v1
+        with:
+          deno-version: v2.x
+
+      - name: Run signature verification tests
+        run: |
+          if [ -f supabase/functions/_tests/tributeSignature.test.ts ]; then
+            deno test --allow-env supabase/functions/_tests/tributeSignature.test.ts
+          else
+            echo "No tribute tests found — skipping"
+          fi

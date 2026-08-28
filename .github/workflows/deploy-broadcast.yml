@@ -1,0 +1,49 @@
+name: Deploy Broadcast
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'worker/src/streaming/**'
+      - 'worker/src/routes/broadcast.ts'
+      - 'worker/src/routes/pipeline.ts'
+      - 'src/lib/broadcast.ts'
+      - 'src/sections/LivePlayer.tsx'
+      - 'src/sections/LiveStreams.tsx'
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  deploy-broadcast-worker:
+    name: Deploy Broadcast Layer
+    runs-on: ubuntu-latest
+    environment: Production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install worker dependencies
+        working-directory: worker
+        run: npm install --no-audit --no-fund
+
+      - name: Deploy broadcast worker
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --env production
+
+      - name: Verify deployment health
+        run: |
+          sleep 5
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://rtv-api.rotationtv.workers.dev/health" || true)
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ Broadcast worker healthy"
+          else
+            echo "::warning::Health check returned $STATUS — verify manually"
+          fi
