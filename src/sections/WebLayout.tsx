@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { Tv, Radio, Film, Zap, LogIn, Menu, X, Grid3X3, CalendarDays } from 'lucide-react'
+import { Tv, Radio, Film, Zap, LogIn, Menu, X, Grid3X3, CalendarDays, Sparkles } from 'lucide-react'
 
 const navItems = [
   { path: '/', label: 'Home', icon: Tv },
@@ -9,6 +9,7 @@ const navItems = [
   { path: '/vod', label: 'VOD', icon: Film },
   { path: '/browse', label: 'Browse', icon: Grid3X3 },
   { path: '/guide', label: 'Guide', icon: CalendarDays },
+  { path: '/studio', label: 'AI Studio', icon: Sparkles },
 ]
 
 export function WebLayout() {

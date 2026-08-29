@@ -8,6 +8,7 @@ import { WebVOD } from './sections/WebVOD'
 import { WebWatch } from './sections/WebWatch'
 import { CategoryBrowser } from './components/CategoryBrowser'
 import { TVGuide } from './components/TVGuide'
+import { AIStudio } from './sections/AIStudio'
 
 function App() {
   // Telegram Mini App shell is retired. Cable player is rtv-broadcast (web).
@@ -20,6 +21,7 @@ function App() {
         <Route path="/vod" element={<WebVOD />} />
         <Route path="/browse" element={<CategoryBrowser />} />
         <Route path="/guide" element={<TVGuide />} />
+        <Route path="/studio" element={<AIStudio />} />
         <Route path="/watch/:id" element={<WebWatch />} />
         <Route path="/auth" element={<WebAuth />} />
         <Route path="*" element={<Navigate to="/" replace />} />
