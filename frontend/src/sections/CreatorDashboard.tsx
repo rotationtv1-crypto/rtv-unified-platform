@@ -41,7 +41,10 @@ export function CreatorDashboard() {
 
   return (
     <div className="p-4 space-y-4">
-      <h2 className="text-lg font-bold">Creator Studio</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-bold">Creator Studio</h2>
+        <a href="https://www.paypal.com/ncp/payment/H95MBHNEBTA5Q" target="_blank" rel="noopener noreferrer" className="bg-[#0070ba] hover:bg-[#005ea6] text-white px-4 py-2 rounded-xl text-xs font-medium flex items-center gap-1 transition-colors">Pay with PayPal <ArrowUpRight className="w-3 h-3" /></a>
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         {stats.map((stat) => (
