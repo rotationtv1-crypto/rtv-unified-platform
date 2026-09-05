@@ -1,6 +1,10 @@
 import { useRTVStore } from '../store/rtvStore'
 import { DollarSign, Users, Star, TrendingUp, Video, Gift, ArrowUpRight } from 'lucide-react'
 
+const PAYPAL_ANALYTICS_URL = 'https://xynkgaxfwvpcixissxdz.supabase.co/functions/v1/paypal-click'
+const PAYPAL_PUBLIC_KEY = 'sb_publishable_LFK-qnChH0b4IXqnsG8AAw_S1k6Ov5C'
+const trackPayPalClick = (source: string) => void fetch(PAYPAL_ANALYTICS_URL, { method: 'POST', keepalive: true, credentials: 'omit', referrerPolicy: 'no-referrer', headers: { Authorization: `Bearer ${PAYPAL_PUBLIC_KEY}`, apikey: PAYPAL_PUBLIC_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ source }) }).catch(() => undefined)
+
 export function CreatorDashboard() {
   const { user } = useRTVStore()
 
@@ -41,7 +45,10 @@ export function CreatorDashboard() {
 
   return (
     <div className="p-4 space-y-4">
-      <h2 className="text-lg font-bold">Creator Studio</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-bold">Creator Studio</h2>
+        <a href="https://www.paypal.com/ncp/payment/H95MBHNEBTA5Q" target="_blank" rel="noopener noreferrer" onClick={() => trackPayPalClick('rtv_unified_platform')} className="bg-[#0070ba] hover:bg-[#005ea6] text-white px-4 py-2 rounded-xl text-xs font-medium flex items-center gap-1 transition-colors">Pay with PayPal <ArrowUpRight className="w-3 h-3" /></a>
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         {stats.map((stat) => (
